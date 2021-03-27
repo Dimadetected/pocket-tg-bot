@@ -1,0 +1,15 @@
+db_file: "bod.db"
+
+bor_url: "https://t.me/PocketGoBot"
+
+messages:
+  responses:
+    start: "Привет! Чтобы сохранять ссылки в своем Pocket аккаунте для начала тебе необходимо дать мне на это доступ. Для этого переходи по ссылке:\n%s"
+    already_authorized: "Ты уже авторизирован. Присылай ссылку, а я ее сохраню."
+    save_successfully: "Ссылка успешно сохранена!"
+    unknown_command: "Я не знаю такой команды"
+  errors:
+    default: "Произошла неизвестная ошибка"
+    invalid_url: "Это невалидная ссылка!"
+    unauthorized: "Ты не авторизирован, используй /start"
+    unable_to_save: "Увы, не удалось сохранить ссылку."

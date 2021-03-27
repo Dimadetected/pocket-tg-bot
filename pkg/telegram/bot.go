@@ -1,19 +1,24 @@
 package telegram
 
 import (
+	"github.com/Dimadetected/pocket-tg-bot/pkg/config"
+	"github.com/Dimadetected/pocket-tg-bot/pkg/repository"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/zhashkevych/go-pocket-sdk"
 	"log"
 )
 
 type Bot struct {
-	bot          *tgbotapi.BotAPI
-	pocketClient *pocket.Client
-	redirectURl  string
+	bot             *tgbotapi.BotAPI
+	pocketClient    *pocket.Client
+	tokenRepository repository.TokenRepository
+	redirectURl     string
+
+	messages config.Messages
 }
 
-func NewBot(bot *tgbotapi.BotAPI, pocketClient *pocket.Client, redirectURL string) *Bot {
-	return &Bot{bot: bot, pocketClient: pocketClient, redirectURl: redirectURL}
+func NewBot(bot *tgbotapi.BotAPI, pocketClient *pocket.Client, tr repository.TokenRepository, redirectURL string, messages config.Messages) *Bot {
+	return &Bot{bot: bot, pocketClient: pocketClient, redirectURl: redirectURL, tokenRepository: tr, messages: messages}
 }
 
 func (b *Bot) Start() error {
@@ -35,10 +40,14 @@ func (b *Bot) handleUpdates(updates tgbotapi.UpdatesChannel) {
 			continue
 		}
 		if update.Message.IsCommand() {
-			b.handleCommand(update.Message)
+			if err := b.handleCommand(update.Message); err != nil {
+				b.handleError(update.Message.Chat.ID, err)
+			}
 			continue
 		}
-		b.handleMessage(update.Message)
+		if err := b.handleMessage(update.Message); err != nil {
+			b.handleError(update.Message.Chat.ID, err)
+		}
 	}
 }
 

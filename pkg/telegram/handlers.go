@@ -1,15 +1,14 @@
 package telegram
 
 import (
-	"fmt"
+	"context"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
-	"log"
+	"github.com/zhashkevych/go-pocket-sdk"
+	"net/url"
 )
 
 const (
 	commandStart = "start"
-
-	replyStartTemplate = "Привет! Чтобы сохранять ссылки в своем Pocket аккаунте для начала тебе необходимо дать мне на это доступ. Для этого переходи по ссылке:\n%s"
 )
 
 func (b *Bot) handleCommand(message *tgbotapi.Message) error {
@@ -21,28 +20,40 @@ func (b *Bot) handleCommand(message *tgbotapi.Message) error {
 		return b.handleUnknownCommand(message)
 	}
 }
-func (b *Bot) handleMessage(message *tgbotapi.Message) {
+func (b *Bot) handleMessage(message *tgbotapi.Message) error {
+	_, err := url.ParseRequestURI(message.Text)
+	if err != nil {
+		return errInvalidURL
+	}
 
-	log.Printf("[%s] %s", message.From.UserName, message.Text)
+	accessToken, err := b.getAccessToken(message.Chat.ID)
+	if err != nil {
+		return errUnauthorized
+	}
+	if err := b.pocketClient.Add(context.Background(), pocket.AddInput{
+		AccessToken: accessToken,
+		URL:         message.Text,
+	}); err != nil {
+		return errUnableToSave
+	}
 
-	msg := tgbotapi.NewMessage(message.Chat.ID, message.Text)
-
-	b.bot.Send(msg)
+	msg := tgbotapi.NewMessage(message.Chat.ID, b.messages.SaveSuccessfully)
+	_, err = b.bot.Send(msg)
+	return err
 }
 
 func (b *Bot) handleStartCommand(message *tgbotapi.Message) error {
-	authLink, err := b.generateAuthorizationLink(message.Chat.ID)
+	_, err := b.getAccessToken(message.Chat.ID)
 	if err != nil {
-		return err
+		return b.initAuthorizationProcess(message)
 	}
-
-	msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf(replyStartTemplate, authLink))
+	msg := tgbotapi.NewMessage(message.Chat.ID, b.messages.AlreadyAuthorized)
 	_, err = b.bot.Send(msg)
 	return err
 }
 
 func (b *Bot) handleUnknownCommand(message *tgbotapi.Message) error {
-	msg := tgbotapi.NewMessage(message.Chat.ID, "Я не знаю такой команды")
+	msg := tgbotapi.NewMessage(message.Chat.ID, b.messages.UnknownCommand)
 	_, err := b.bot.Send(msg)
 	return err
 }
